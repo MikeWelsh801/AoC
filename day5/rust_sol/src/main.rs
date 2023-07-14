@@ -49,14 +49,14 @@ fn print_answer(contents: &String, swap_func: fn(&mut Vec<Vec<char>>, &str)) {
 
 fn swap_stacks_9001(stacks: &mut Vec<Vec<char>>, line: &str) {
     let (move_num, from_index, to_index) = extract_nums(line);
-    let mut vals = Vec::new();
+    let mut values = Vec::new();
 
     (0..move_num).for_each(|_| {
-        let val = stacks[from_index].pop().unwrap();
-        vals.push(val);
+        let value = stacks[from_index].pop().unwrap();
+        values.push(value);
     });
 
-    vals.into_iter().rev().for_each(|val| {
+    values.into_iter().rev().for_each(|val| {
         stacks[to_index].push(val);
     });
 }
