@@ -4,7 +4,7 @@ fn main() {
     let contents = fs::read_to_string("input.txt").expect("Couldn't read file.");
 
     println!("Answer 1: {}", get_index(&contents, 4));
-    println!("Answer 1: {}", get_index(&contents, 14));
+    println!("Answer 2: {}", get_index(&contents, 14));
 }
 
 fn get_index(text: &str, len: usize) -> usize {
