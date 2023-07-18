@@ -4,15 +4,83 @@ fn main() {
     let contents = fs::read_to_string("input.txt").expect("Couldn't read file.");
     let grid = create_grid(contents);
     let mut count = 0;
+    let mut high_score = 0;
 
     for row in 0..grid.len() {
         for col in 0..grid[row].len() {
             if is_visible(row, col, &grid) {
                 count += 1;
             }
+            if is_on_edge(row, col, &grid) {
+                continue;
+            }
+            let new_score = get_score(row, col, &grid);
+            if new_score > high_score {
+                high_score = new_score;
+            }
         }
     }
     println!("Answer 1: {count}");
+    println!("Answer 2: {high_score}");
+}
+
+fn get_score(row: usize, col: usize, grid: &[Vec<u32>]) -> u32 {
+    get_left_score(row, col, grid) *
+    get_right_score(row, col, grid) *
+    get_up_score(row, col, grid) *
+    get_down_score(row, col, grid)
+}
+
+fn get_left_score(row: usize, col: usize, grid: &[Vec<u32>]) -> u32 {
+    let tree = grid[row][col];
+    let mut score = 0;
+
+    for i in (0..col).rev() {
+        score += 1;
+        if grid[row][i] >= tree {
+            break;
+        }
+    }
+    score
+}
+
+fn get_right_score(row: usize, col: usize, grid: &[Vec<u32>]) -> u32 {
+    let tree = grid[row][col];
+    let mut score = 0;
+
+    for i in col+1..grid[row].len() {
+        score += 1;
+        if grid[row][i] >= tree {
+            break;
+        }
+    }
+    score
+}
+
+fn get_up_score(row: usize, col: usize, grid: &[Vec<u32>]) -> u32 {
+    let tree = grid[row][col];
+    let mut score = 0;
+
+    for i in (0..row).rev() {
+        score += 1;
+        if grid[i][col] >= tree {
+            break;
+        }
+    }
+    score
+}
+
+fn get_down_score(row: usize, col: usize, grid: &[Vec<u32>]) -> u32 {
+    let tree = grid[row][col];
+    let mut score = 0;
+
+    for i in row+1..grid.len() {
+        score += 1;
+        if grid[i][col] >= tree {
+            break;
+        }
+    }
+    score
 }
 
 fn is_visible(row: usize, col: usize, grid: &[Vec<u32>]) -> bool {
