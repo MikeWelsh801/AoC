@@ -2,10 +2,28 @@ use std::{fs, vec};
 
 fn main() {
     let contents = fs::read_to_string("input.txt").expect("Couldn't read file.");
+
     let (grid, s_pos, e_pos) = build_grid(&contents);
     let path_len = bfs(&grid, s_pos, e_pos);
+    let shortest_len = get_shortest_a_len(&grid, e_pos);
 
     println!("Answer 1: {path_len}");
+    println!("Answer 2: {shortest_len}");
+}
+
+fn get_shortest_a_len(grid: &Vec<Vec<char>>, e_pos: (usize, usize)) -> u32 {
+    let mut min = u32::MAX;
+    grid.iter().enumerate().for_each(|(i, line)| {
+        line.iter().enumerate().for_each(|(j, ele)| {
+            if *ele == 'a' {
+                let shortest = bfs(&grid, (i, j), e_pos);
+                if shortest < min {
+                    min = shortest;
+                }
+            }
+        })
+    });
+    min
 }
 
 fn bfs(grid: &Vec<Vec<char>>, s_pos: (usize, usize), e_pos: (usize, usize)) -> u32 {
