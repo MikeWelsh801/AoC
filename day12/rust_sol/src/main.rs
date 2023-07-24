@@ -38,10 +38,13 @@ fn print_path(
         });
         println!();
     });
-
+    println!();
 }
 
-fn get_shortest_a_len(grid: &Vec<Vec<char>>, e_pos: (usize, usize)) -> (u32, Vec<Vec<Option<(usize, usize)>>>) {
+fn get_shortest_a_len(
+    grid: &Vec<Vec<char>>,
+    e_pos: (usize, usize),
+) -> (u32, Vec<Vec<Option<(usize, usize)>>>) {
     grid.iter()
         .enumerate()
         .map(|(i, line)| {
