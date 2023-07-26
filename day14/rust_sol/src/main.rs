@@ -30,7 +30,7 @@ impl Grid {
         self.floor = cmp::max(new_floor, self.floor);
     }
 
-    fn add_path(&mut self, path: Vec<Point>) {
+    fn add_path(&mut self, path: &[Point]) {
         path.iter()
             .zip(path.iter().skip(1))
             .for_each(|(p1, p2)| self.add_wall(p1, p2));
@@ -63,7 +63,7 @@ impl Grid {
             return false;
         }
 
-        while sand_location.y < self.map[drop_point.x].len() - 1 {
+        while sand_location.y <= self.floor {
             // try to go down
             if self.map[sand_location.x][sand_location.y + 1] == Material::Air {
                 sand_location.y += 1;
@@ -122,7 +122,7 @@ fn main() {
     let mut count = grid.count_sand_drops();
 
     // uncomment out line bellow to show map
-    grid.display_grid(Point::new(430, 0), Point::new(550, grid.floor));
+    grid.display_grid(Point::new(400, 0), Point::new(550, grid.floor));
     println!("Answer 1: {count}");
 
     // part 2 (just add to count from part 1, so we don't waste work)
@@ -138,7 +138,7 @@ fn fill_grid(contents: String, grid: &mut Grid) {
     contents
         .lines()
         .map(|line| parse_points(&line))
-        .for_each(|points| grid.add_path(points));
+        .for_each(|points| grid.add_path(&points));
 }
 
 fn parse_points(line: &str) -> Vec<Point> {
