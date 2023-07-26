@@ -26,9 +26,8 @@ impl Grid {
             (min..=max).for_each(|x| self.map[x][start.y] = Material::Rock);
         }
 
-        if cmp::max(start.y, end.y) + 2 > self.floor {
-            self.floor = cmp::max(start.y, end.y) + 2;
-        }
+        let new_floor = cmp::max(start.y, end.y) + 2;
+        self.floor = cmp::max(new_floor, self.floor);
     }
 
     fn add_path(&mut self, path: Vec<Point>) {
@@ -121,12 +120,16 @@ fn main() {
 
     // part 1
     let mut count = grid.count_sand_drops();
+
+    // uncomment out line bellow to show map
     grid.display_grid(Point::new(430, 0), Point::new(550, grid.floor));
     println!("Answer 1: {count}");
 
     // part 2 (just add to count from part 1, so we don't waste work)
     grid.add_floor();
     count += grid.count_sand_drops();
+
+    // uncomment out line bellow to show map
     grid.display_grid(Point::new(400, 0), Point::new(550, grid.floor));
     println!("Answer 2: {count}");
 }
