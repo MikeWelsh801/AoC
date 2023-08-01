@@ -51,7 +51,13 @@ fn run_sim(graph: HashMap<String, Valve>, timeout: i32) -> (i32, i32) {
     let part2 = get_permutations(&graph)
         .into_iter()
         .map(|(s1, s2)| {
+            if s1.is_empty() || s2.is_empty() {
+                return 0;
+            }
             let elf_flow = get_max_flow(&graph, root, 26, s1, &mut cache);
+            if elf_flow < part1 / 2 {
+                return 0;
+            }
             let eleph_flow = get_max_flow(&graph, root, 26, s2, &mut cache);
             elf_flow + eleph_flow
         })
