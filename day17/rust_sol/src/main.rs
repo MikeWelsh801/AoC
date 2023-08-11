@@ -9,12 +9,6 @@ enum TetrisType {
     Box,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-enum Element {
-    Air,
-    Rock,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Point {
     x: usize,
@@ -24,6 +18,14 @@ struct Point {
 impl Point {
     fn new(x: usize, y: usize) -> Self {
         Point { x, y }
+    }
+
+    fn get_bits(&self) -> u64 {
+        let bits = 1 << self.x;
+        let offset = self.y % 8;
+        let bit_pos = bits << offset * 8;
+
+        bit_pos
     }
 }
 
@@ -83,15 +85,15 @@ impl TetrisPeice {
 }
 
 struct Cave {
-    map: Vec<Vec<Element>>,
+    map: Vec<u64>,
     highest_unit: usize,
     current_push: usize,
     push_list: String,
 }
 
 impl Cave {
-    fn new(max_x: usize, max_y: usize, push_list: String) -> Self {
-        let map = vec![vec![Element::Air; max_x]; max_y];
+    fn new(max_y: usize, push_list: String) -> Self {
+        let map = vec![0; max_y / 8 + 1];
         Cave {
             map,
             highest_unit: 0,
@@ -114,7 +116,7 @@ impl Cave {
                 self.highest_unit = point.y + 1;
             }
 
-            self.map[point.y][point.x] = Element::Rock;
+            self.map[point.y / 8] = self.map[point.y / 8] ^ point.get_bits();
         });
     }
 
@@ -133,11 +135,15 @@ impl Cave {
         let mut new_coordinates = vec![];
 
         for point in block.coordinates.iter() {
-            let new_x = point.x.checked_sub(1);
-            if new_x == None || self.map[point.y][new_x.unwrap()] == Element::Rock {
+            let y_index = point.y / 8;
+            let new_x = point.get_bits() >> 1;
+
+            // if the line has a 1 where the new posiiton would be, xor would flip
+            // the 1 bit to zero, decreasing the value of the line
+            if point.x == 0 || self.map[y_index] ^ new_x < self.map[y_index] {
                 return;
             }
-            new_coordinates.push(Point::new(new_x.unwrap(), point.y));
+            new_coordinates.push(Point::new(point.x - 1, point.y));
         }
 
         block.coordinates = new_coordinates;
@@ -147,11 +153,15 @@ impl Cave {
         let mut new_coordinates = vec![];
 
         for point in block.coordinates.iter() {
-            let new_x = point.x + 1;
-            if new_x >= self.map[point.y].len() || self.map[point.y][new_x] == Element::Rock {
+            let y_index = point.y / 8;
+            let new_x = point.get_bits() << 1;
+
+            // if the line has a 1 where the new posiiton would be, xor would flip
+            // the 1 bit to zero, decreasing the value of the line
+            if point.x == 6 || self.map[y_index] ^ new_x < self.map[y_index] {
                 return;
             }
-            new_coordinates.push(Point::new(new_x, point.y));
+            new_coordinates.push(Point::new(point.x + 1, point.y));
         }
 
         block.coordinates = new_coordinates;
@@ -163,38 +173,41 @@ impl Cave {
         for point in block.coordinates.iter() {
             let new_y = point.y.checked_sub(1);
 
-            if new_y == None || self.map[new_y.unwrap()][point.x] == Element::Rock {
+            if new_y == None {
                 return false;
             }
-            new_coordinates.push(Point::new(point.x, new_y.unwrap()));
-        }
 
+            let new_y = new_y.unwrap();
+            let new_x = Point::new(point.x, new_y).get_bits();
+            if self.map[new_y / 8] ^ new_x < self.map[new_y / 8] {
+                return false;
+            }
+            new_coordinates.push(Point::new(point.x, new_y));
+        }
         block.coordinates = new_coordinates;
         true
     }
 
     fn print_grid(&self) {
-        (0..=self.highest_unit + 3).rev().for_each(|y| {
+        (0..self.highest_unit + 3).rev().for_each(|y| {
             print!("|");
-            (0..self.map[0].len()).for_each(|x| match self.map[y][x] {
-                Element::Air => print!("."),
-                Element::Rock => print!("#"),
+            let offset = (y % 8) * 8;
+            let line = self.map[y / 8] >> offset;
+
+            (0..7).for_each(|bit| match (1 << bit) & line == 0 {
+                true => print!("."),
+                false => print!("#"),
             });
             println!("|");
         });
-
-        print!("+");
-        (0..self.map[0].len()).for_each(|_| {
-            print!("-");
-        });
-        println!("+");
+        println!("+-------+");
     }
 }
 
 fn main() {
     let contents = fs::read_to_string("input.txt").expect("Couldn't read file.");
 
-    let mut cave = Cave::new(7, 3600, contents);
+    let mut cave = Cave::new(3600, contents);
     let mut current = TetrisType::HLine;
     (0..2022).for_each(|_| {
         cave.add_tetris_block(Point::new(2, cave.highest_unit + 3), current);
