@@ -1,6 +1,6 @@
-use std::fs;
+use std::{collections::HashMap, fs};
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum TetrisType {
     HLine,
     Plus,
@@ -92,7 +92,7 @@ struct Cave {
 }
 
 impl Cave {
-    fn new(max_y: usize, push_list: String) -> Self {
+    fn new(max_y: usize, push_list: &String) -> Self {
         let map = vec![0; max_y / 8 + 1];
         Cave {
             map,
@@ -126,7 +126,7 @@ impl Cave {
         match direction {
             '<' => self.move_piece_left(block),
             '>' => self.move_piece_right(block),
-            _ => println!("Unexpected direction: {direction}"),
+            _ => panic!("Unexpected direction: {direction}"),
         };
         self.current_push = (self.current_push + 1) % self.push_list.len();
     }
@@ -145,7 +145,6 @@ impl Cave {
             }
             new_coordinates.push(Point::new(point.x - 1, point.y));
         }
-
         block.coordinates = new_coordinates;
     }
 
@@ -163,7 +162,6 @@ impl Cave {
             }
             new_coordinates.push(Point::new(point.x + 1, point.y));
         }
-
         block.coordinates = new_coordinates;
     }
 
@@ -194,27 +192,78 @@ impl Cave {
             let offset = (y % 8) * 8;
             let line = self.map[y / 8] >> offset;
 
-            (0..7).for_each(|bit| match (1 << bit) & line == 0 {
-                true => print!("."),
-                false => print!("#"),
+            (0..7).for_each(|bit| match (1 << bit) & line {
+                0 => print!("."),
+                _ => print!("#"),
             });
             println!("|");
         });
         println!("+-------+");
+    }
+
+    fn covers_width(&self, row: usize) -> bool {
+        let mut lines = 0;
+
+        (0..8).for_each(|offset| {
+            let line = self.map[row] >> (offset * 8);
+            lines = lines | line;
+        });
+
+        lines & 127 == 127
     }
 }
 
 fn main() {
     let contents = fs::read_to_string("input.txt").expect("Couldn't read file.");
 
-    let mut cave = Cave::new(3600, contents);
+    // *** Part 1 ***
+
+    let mut cave = Cave::new(0xE10, &contents);
     let mut current = TetrisType::HLine;
     (0..2022).for_each(|_| {
         cave.add_tetris_block(Point::new(2, cave.highest_unit + 3), current);
         current = get_next_type(current);
     });
     cave.print_grid();
-    println!("Cave height: {}", cave.highest_unit);
+    println!("Answer 1: {}", cave.highest_unit);
+
+    // *** Part 2 *** find height after dropping 1 trillion pieces.
+    const MAX_ITER: usize = 0xE8D4A51000; // 1 trillion
+
+    let mut cave = Cave::new(0x186A0, &contents);
+    let mut current = TetrisType::HLine;
+    let mut map: HashMap<(u64, TetrisType, usize), (usize, usize)> = HashMap::new();
+    let mut cycle_height = 0;
+
+    for piece_count in 0..MAX_ITER {
+        cave.add_tetris_block(Point::new(2, cave.highest_unit + 3), current);
+        current = get_next_type(current);
+        let row = (cave.highest_unit - 1) / 8;
+
+        if !cave.covers_width(row) {
+            continue;
+        }
+
+        // add to map to check for cycles (key's already in map)
+        let key = (cave.map[row], current, cave.current_push);
+        let val = (piece_count, cave.highest_unit);
+
+        // found a cycle, insert returns previous values
+        if let Some((prev_count, prev_height)) = map.insert(key, val) {
+            let iter_per_cycle = piece_count - prev_count;
+            let number_of_cycles = (MAX_ITER - piece_count) / iter_per_cycle - 1;
+
+            cycle_height = (cave.highest_unit - prev_height) * number_of_cycles;
+
+            let up_to = piece_count + (iter_per_cycle * number_of_cycles) + 1;
+            (up_to..MAX_ITER).for_each(|_| {
+                cave.add_tetris_block(Point::new(2, cave.highest_unit + 3), current);
+                current = get_next_type(current);
+            });
+            break;
+        }
+    }
+    println!("Answer 2: {}", cave.highest_unit + cycle_height);
 }
 
 fn get_next_type(current_type: TetrisType) -> TetrisType {
