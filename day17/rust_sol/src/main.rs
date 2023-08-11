@@ -9,6 +9,12 @@ enum TetrisType {
     Box,
 }
 
+enum Direction {
+    Down,
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Point {
     x: usize,
@@ -23,9 +29,8 @@ impl Point {
     fn get_bits(&self) -> u64 {
         let bits = 1 << self.x;
         let offset = self.y % 8;
-        let bit_pos = bits << offset * 8;
 
-        bit_pos
+        bits << offset * 8
     }
 }
 
@@ -84,21 +89,21 @@ impl TetrisPeice {
     }
 }
 
-struct Cave {
+struct Cave<'a> {
     map: Vec<u64>,
     highest_unit: usize,
     current_push: usize,
-    push_list: String,
+    push_list: &'a str,
 }
 
-impl Cave {
-    fn new(max_y: usize, push_list: &String) -> Self {
+impl<'a> Cave<'a> {
+    fn new(max_y: usize, push_list: &'a String) -> Self {
         let map = vec![0; max_y / 8 + 1];
         Cave {
             map,
             highest_unit: 0,
             current_push: 0,
-            push_list: push_list.trim().to_string(),
+            push_list: push_list.trim(),
         }
     }
 
@@ -107,8 +112,15 @@ impl Cave {
         let mut block_falling = true;
 
         while block_falling {
-            self.push_block(&mut block);
-            block_falling = self.apply_gravity(&mut block);
+            let direction = &self.push_list[self.current_push..=self.current_push];
+            match direction {
+                "<" => self.move_piece(&mut block, Direction::Left),
+                ">" => self.move_piece(&mut block, Direction::Right),
+                _ => panic!("Unexpected direction: {direction}"),
+            };
+            self.current_push = (self.current_push + 1) % self.push_list.len();
+
+            block_falling = self.move_piece(&mut block, Direction::Down);
         }
 
         block.coordinates.iter().for_each(|point| {
@@ -120,67 +132,45 @@ impl Cave {
         });
     }
 
-    fn push_block(&mut self, block: &mut TetrisPeice) {
-        let direction = self.push_list.chars().nth(self.current_push).unwrap_or('x');
-
-        match direction {
-            '<' => self.move_piece_left(block),
-            '>' => self.move_piece_right(block),
-            _ => panic!("Unexpected direction: {direction}"),
-        };
-        self.current_push = (self.current_push + 1) % self.push_list.len();
-    }
-
-    fn move_piece_left(&self, block: &mut TetrisPeice) {
+    fn move_piece(&self, block: &mut TetrisPeice, direction: Direction) -> bool {
         let mut new_coordinates = vec![];
 
         for point in block.coordinates.iter() {
             let y_index = point.y / 8;
-            let new_x = point.get_bits() >> 1;
+            match direction {
+                Direction::Right => {
+                    let new_x = point.get_bits() << 1;
 
-            // if the line has a 1 where the new posiiton would be, xor would flip
-            // the 1 bit to zero, decreasing the value of the line
-            if point.x == 0 || self.map[y_index] ^ new_x < self.map[y_index] {
-                return;
-            }
-            new_coordinates.push(Point::new(point.x - 1, point.y));
-        }
-        block.coordinates = new_coordinates;
-    }
+                    // if the line has a 1 where the new posiiton would be, xor would flip
+                    // the 1 bit to zero, decreasing the value of the line
+                    if point.x == 6 || self.map[y_index] ^ new_x < self.map[y_index] {
+                        return false;
+                    }
+                    new_coordinates.push(Point::new(point.x + 1, point.y));
+                }
+                Direction::Left => {
+                    let new_x = point.get_bits() >> 1;
 
-    fn move_piece_right(&self, block: &mut TetrisPeice) {
-        let mut new_coordinates = vec![];
+                    if point.x == 0 || self.map[y_index] ^ new_x < self.map[y_index] {
+                        return false;
+                    }
+                    new_coordinates.push(Point::new(point.x - 1, point.y));
+                }
+                Direction::Down => {
+                    let new_y = point.y.checked_sub(1);
 
-        for point in block.coordinates.iter() {
-            let y_index = point.y / 8;
-            let new_x = point.get_bits() << 1;
+                    if new_y == None {
+                        return false;
+                    }
 
-            // if the line has a 1 where the new posiiton would be, xor would flip
-            // the 1 bit to zero, decreasing the value of the line
-            if point.x == 6 || self.map[y_index] ^ new_x < self.map[y_index] {
-                return;
-            }
-            new_coordinates.push(Point::new(point.x + 1, point.y));
-        }
-        block.coordinates = new_coordinates;
-    }
-
-    fn apply_gravity(&self, block: &mut TetrisPeice) -> bool {
-        let mut new_coordinates = vec![];
-
-        for point in block.coordinates.iter() {
-            let new_y = point.y.checked_sub(1);
-
-            if new_y == None {
-                return false;
-            }
-
-            let new_y = new_y.unwrap();
-            let new_x = Point::new(point.x, new_y).get_bits();
-            if self.map[new_y / 8] ^ new_x < self.map[new_y / 8] {
-                return false;
-            }
-            new_coordinates.push(Point::new(point.x, new_y));
+                    let new_y = new_y.unwrap();
+                    let new_x = Point::new(point.x, new_y).get_bits();
+                    if self.map[new_y / 8] ^ new_x < self.map[new_y / 8] {
+                        return false;
+                    }
+                    new_coordinates.push(Point::new(point.x, new_y));
+                }
+            };
         }
         block.coordinates = new_coordinates;
         true
@@ -255,6 +245,8 @@ fn main() {
 
             cycle_height = (cave.highest_unit - prev_height) * number_of_cycles;
 
+            // calculating the height of all the cycles we haven't encountered yet
+            // allows us to skip a ton of iterations.
             let up_to = piece_count + (iter_per_cycle * number_of_cycles) + 1;
             (up_to..MAX_ITER).for_each(|_| {
                 cave.add_tetris_block(Point::new(2, cave.highest_unit + 3), current);
