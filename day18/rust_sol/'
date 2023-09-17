@@ -1,6 +1,6 @@
 use std::fs;
 
-const GRID_SIZE: usize = 27;
+const GRID_SIZE: usize = 25;
 
 #[derive(Copy, Clone, Debug)]
 struct Point {
@@ -111,9 +111,17 @@ impl Map {
     }
 
     fn remove_air(&mut self) {
-        (0..GRID_SIZE - 1).for_each(|idx| self.fill_water(0, 0, idx));
-        (0..GRID_SIZE - 1).for_each(|idx| self.fill_water(0, idx, 0));
-        (0..GRID_SIZE - 1).for_each(|idx| self.fill_water(idx, 0, 0));
+        (0..GRID_SIZE - 1).for_each(|idx| {
+            self.fill_water(0, 0, idx);
+        });
+
+        (0..GRID_SIZE - 1).for_each(|idx| {
+            self.fill_water(0, idx, 0);
+        });
+
+        (0..GRID_SIZE - 1).for_each(|idx| {
+            self.fill_water(idx, 0, 0);
+        });
 
         // remove all of the non water elements.
         let new_coord: Vec<(i32, i32, i32)> = self
