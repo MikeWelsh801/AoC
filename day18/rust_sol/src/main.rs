@@ -231,6 +231,7 @@ impl Map {
         let mut x_count = 0;
         self.grid.iter().for_each(|layer| {
             println!("X layer: {}", x_count);
+
             x_count += 1;
             layer.iter().for_each(|row| {
                 row.iter().for_each(|elem| match elem {
